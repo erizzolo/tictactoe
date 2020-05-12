@@ -27,7 +27,7 @@ enum action_code
     NEW,        ///< new game
     TRY,        ///< make a guess (with guess as parameter)
     MOVE,       ///< move selection (with amount as parameter)
-    SHOW,       ///< show the secret
+    SIZE,       ///< resize board (with amount as parameter)
     NUM_ACTIONS ///< fake code: total number of actions (including NONE)
 };
 

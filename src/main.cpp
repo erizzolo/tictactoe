@@ -33,12 +33,13 @@ using namespace std;
 
 // The application logic ======================================================
 // application configuration
-const int MAX_GUESSES = 10;     // max number of guesses: fair enough!
-const double TIME_ALLOWED = 10; // ten seconds = 1 seconds / guess
+const double TIME_ALLOWED = 100; ///< ten seconds = 1 seconds / guess
+const int BOARD_DIM = 4;         ///< default board dimension
+
 struct configuration
 {
-    int maxGuesses{MAX_GUESSES / 2};  ///< il numero di tentativi concessi
     double timeAllowed{TIME_ALLOWED}; ///< tempo concesso per indovinare
+    size_t boardDim{BOARD_DIM};       ///< board dimension
 };
 
 // carica e restituisce la configurazione dell'applicazione
@@ -86,7 +87,7 @@ configuration loadConfiguration()
     ifstream in("config.ini");
     if (in)
     {
-        in >> result.maxGuesses >> result.timeAllowed;
+        in >> result.timeAllowed >> result.boardDim;
     }
     in.close();
     return result;
@@ -97,7 +98,7 @@ void saveConfiguration(const configuration &c)
     ofstream out("config.ini");
     if (out)
     {
-        out << c.maxGuesses << " " << c.timeAllowed;
+        out << c.timeAllowed << " " << c.boardDim;
     }
     out.close();
 }

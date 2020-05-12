@@ -7,8 +7,12 @@
  * effettuare ed i dati necessari alla gestione.
  */
 
-// data to be guessed
-using guess = char;
+// the cell
+using square = char;
+// the player type
+using player = unsigned int;
+
+#define MAX_DIM 4                 ///< max board dimension
 
 /**
  * @brief game representation (to be defined in game.cpp)
@@ -22,13 +26,10 @@ struct game;
  */
 enum status
 {
-    NEW_GAME,                                                   ///< just started (no guess so far)
-    RUNNING,                                                    ///< started, at least one guess made
-    TIMEOUT = 2,                                                ///< time allowed finished
-    NO_MORE_GUESSES = 4,                                        ///< no more guesses allowed
-    REVEALED = 8,                                               ///< secret has been revealed
-    RIGHT_GUESSED = 16,                                         ///< secret has been guessed
-    OVER = TIMEOUT | NO_MORE_GUESSES | REVEALED | RIGHT_GUESSED ///< over, for checking purposes
+    RUNNING,               ///< game is running
+    TIMEOUT = 1,           ///< player timeout
+    ENDED = 2,             ///< normal end
+    OVER = TIMEOUT | ENDED ///< over, for checking purposes
 };
 
 // actions available on the game (known to the application and the user interface)
@@ -48,51 +49,55 @@ game newGame(const configuration &);
 status getStatus(const game &);
 
 /**
- * @brief Get the number of available guesses
+ * @brief Get the current player
  * 
- * @return int the number of available guesses
+ * @return current player 
  */
-int getAvailableGuesses(const game &);
+player getTurn(const game &);
 
 /**
- * @brief Get the number of guesses made so far
+ * @brief Get the winner player
  * 
- * @return int the number of guesses made so far
+ * @return winner player 
  */
-int getNumberOfGuesses(const game &);
+player getWinner(const game &);
 
 /**
- * @brief Get the desired guess
+ * @brief Get the player of a cell
  * 
- * @param p the desired guess position (0 <= p < numGuesses)
- * @param guess the retrieved guess
- * @return true if the guess was set
- * @return false otherwise
+ * @return cell player 
  */
-bool getGuess(const game &, int, guess &);
+player getCellPlayer(const game &, square);
 
 /**
- * @brief Get the elapsed time since the start of the game
+ * @brief Get the elapsed time for the given player
  * 
  * @return double the elapsed time (in seconds)
  */
-double getElapsed(const game &);
+double getElapsed(const game &, player);
 
 /**
- * @brief Get the secret (and terminate the game)
+ * @brief Get a move from the computer
  * 
- * @return guess the secret
+ * @return square the chosen cell
  */
-guess getSecret(game &);
+square getMove(const game &);
 
 /**
- * @brief Allow a guess to be made
+ * @brief Allow a move to be made
  * 
- * @param s the guess
- * @return true if guess is right
- * @return false if guess is wrong or not allowed
+ * @return true if move has been made
+ * @return false if move was not allowed
  */
-bool checkGuess(game &, guess);
+bool makeMove(game &, square);
+
+/**
+ * @brief Check if a move is allowed
+ * 
+ * @return true if move is allowed
+ * @return false if move is not allowed
+ */
+bool isAllowedMove(const game &, square);
 
 /**
  * @brief update the time elapsed for the game

@@ -46,7 +46,7 @@ void updateView(const game &);
  * @brief called when a guess is checked
  * 
  */
-void guessChecked(const game &);
+void moveMade(const game &, square);
 
 /**
  * @brief called when a game is started

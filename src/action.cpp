@@ -26,12 +26,12 @@ bool isEnabled(action_code code, const game &g)
     case EXIT:
         return true;
     case NEW:
-        return getStatus(g) != NEW_GAME;
+        return true;
     case MOVE:
     case TRY:
-        return (getStatus(g) & OVER) == 0;
-    case SHOW:
-        return (getStatus(g) & (REVEALED | RIGHT_GUESSED)) == 0;
+        return getStatus(g) == RUNNING;
+    case SIZE:
+        return getStatus(g) != RUNNING;
     case NONE:
         return true;
     default:
@@ -46,7 +46,7 @@ bool isEnabled(action_code code, const game &g)
  * @param g     the game
  * @param config    the application configuration 
  */
-void processUserAction(action a, game &g, configuration &config)
+void processUserAction(action a, game &g, configuration &c)
 {
     if (isEnabled(a.code, g))
     {
@@ -55,16 +55,24 @@ void processUserAction(action a, game &g, configuration &config)
         case EXIT:
             break;
         case NEW:
-            g = newGame(config);
+            g = newGame(c);
             break;
         case TRY:
-            checkGuess(g, a.param); // ignore result
+            makeMove(g, a.param); // ignore result
             break;
         case MOVE:
             changeSelection(g, a.param);
             break;
-        case SHOW:
-            getSecret(g); // ignore result
+        case SIZE:
+            c.boardDim += a.param;
+            if (c.boardDim > MAX_DIM)
+            {
+                c.boardDim = MIN_DIM;
+            }
+            if (c.boardDim < MIN_DIM)
+            {
+                c.boardDim = MAX_DIM;
+            }
             break;
         case NONE:
             break;
