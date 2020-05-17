@@ -16,21 +16,25 @@ const Clock theClock;
 #define NUM_PLAYERS 2             ///< number of players
 #define PLAYER_NONE (NUM_PLAYERS) ///< none of current players
 
-using moves = int; ///< bitmap for moves
+using moves = unsigned int; ///< bitmap for moves
 // computed at every new game ...
 moves ALL_MOVES, WINNINGS[MAX_DIM + MAX_DIM + 2];
 size_t NUM_WINNINGS, NUM_CELLS;
 square MIN_CELL, MAX_CELL;
 
 // representation of the game configuration
-using config = unsigned long long;
-// MSBit = turn ???, (NUM_CELLS + NUM_CELLS LSBits) = player moves
+using config = unsigned int;
+// (NUM_CELLS + NUM_CELLS LSBits) = player moves
 enum outcome
 {
     WINNING, ///< turn player wins
     LOSING,  ///< turn player loses
     DRAW     ///< nobody wins/loses
 };
+
+// AI map for 4x4 board
+#include <map>
+map<config, outcome> results;
 
 /**
  * @brief game representation
@@ -48,17 +52,8 @@ struct game
     Duration elapsed[NUM_PLAYERS]{0s, 0s}; ///< elapsed time
 };
 
-/**
- * @brief Get a new game based on configuration
- * 
- * @param c     the application configuration
- * @return game a new game
- */
-game newGame(const configuration &c)
+void initData(const game &g)
 {
-    game g;
-    g.timeAllowed = c.timeAllowed;
-    g.DIM = c.boardDim;
     // compute dimensions and moves
     NUM_CELLS = g.DIM * g.DIM;
     MIN_CELL = 0;
@@ -79,6 +74,20 @@ game newGame(const configuration &c)
     WINNINGS[g.DIM + g.DIM] = mainDiagonal;
     WINNINGS[g.DIM + g.DIM + 1] = coDiagonal;
     NUM_WINNINGS = g.DIM + g.DIM + 2;
+}
+/**
+ * @brief Get a new game based on configuration
+ * 
+ * @param c     the application configuration
+ * @return game a new game
+ */
+game newGame(const configuration &c)
+{
+    game g;
+    g.timeAllowed = c.timeAllowed;
+    g.DIM = c.boardDim;
+    initData(g);
+    // results.clear();
     g.state = RUNNING;
     gameStarted(g); // notify UI
     return g;
@@ -193,6 +202,117 @@ moves allMoves(const game &g)
     return result;
 }
 
+// Reverse row tranform assuming DIM = 4
+// IN:  3333222211110000 3333222211110000
+// OUT: 0000111122223333 0000111122223333
+inline config RR4(config c)
+{
+#define RR4_LOW8_MASK ((config)0x00FF00FF)
+#define RR4_HIGH8_MASK ((config)0xFF00FF00)
+#define RR4_LOW4_MASK ((config)0x0F0F0F0F)
+#define RR4_HIGH4_MASK ((config)0xF0F0F0F0)
+    // h:  1111000033332222 1111000033332222
+    config h = ((c & RR4_LOW8_MASK) << 8) | ((c & RR4_HIGH8_MASK) >> 8);
+    // return:  0000111122223333 0000111122223333
+    return ((h & RR4_LOW4_MASK) << 4) | ((h & RR4_HIGH4_MASK) >> 4);
+}
+
+// Reverse column tranform assuming DIM = 4
+// IN:  3210321032103210 3210321032103210
+// OUT: 0123012301230123 0123012301230123
+inline config RC4(config c)
+{
+#define RC4_LOW8_MASK ((config)0x33333333)
+#define RC4_HIGH8_MASK ((config)0xCCCCCCCC)
+#define RC4_HIGH4_MASK ((config)0xAAAAAAAA)
+#define RC4_LOW4_MASK ((config)0x55555555)
+    // h:  1032103210321032 1032103210321032
+    config h = ((c & RC4_LOW8_MASK) << 2) | ((c & RC4_HIGH8_MASK) >> 2);
+    // return:  0123012301230123 0123012301230123
+    return ((h & RC4_LOW4_MASK) << 1) | ((h & RC4_HIGH4_MASK) >> 1);
+}
+
+// Exchange row/column tranform assuming DIM = 4
+// IN:  FEDCBA9876543210 FEDCBA9876543210
+// OUT: FB73EA62D951C840 FB73EA62D951C840
+inline config X4(config c)
+{
+#define X4_NO_SHIFT ((config)0x84218421)
+#define X4_SHIFT_P3 ((config)0x08420842)
+#define X4_SHIFT_P6 ((config)0x00840084)
+#define X4_SHIFT_P9 ((config)0x00080008)
+#define X4_SHIFT_M3 ((config)0x42104210)
+#define X4_SHIFT_M6 ((config)0x21002100)
+#define X4_SHIFT_M9 ((config)0x10001000)
+    config r = (c & X4_NO_SHIFT) |
+               ((c & X4_SHIFT_P3) << 3) |
+               ((c & X4_SHIFT_M3) >> 3) |
+               ((c & X4_SHIFT_P6) << 6) |
+               ((c & X4_SHIFT_M6) >> 6) |
+               ((c & X4_SHIFT_P9) << 9) |
+               ((c & X4_SHIFT_M9) >> 9);
+    return r;
+}
+
+void setConfigResult(config c0, outcome o)
+{
+    results[c0] = o;
+    config c1 = X4(c0);
+    results[c1] = o;
+    config c2 = RR4(c0);
+    results[c2] = o;
+    config c3 = RR4(c1);
+    results[c3] = o;
+    config c4 = RC4(c0);
+    results[c4] = o;
+    config c5 = RC4(c1);
+    results[c5] = o;
+    config c6 = RC4(c2);
+    results[c6] = o;
+    config c7 = RC4(c3);
+    results[c7] = o;
+}
+outcome checkConfig4(config cfg, moves all)
+{
+    // cfg = minConfig(cfg);
+    auto chk = results.find(cfg);
+    if (chk != results.end())
+    {
+        return chk->second;
+    }
+    outcome result = WINNING;
+    if (!isWinning(cfg))
+    {
+        if (all == ALL_MOVES)
+        {
+            result = DRAW;
+        }
+        else
+        {
+            // check other player's moves
+            config other = ((cfg & ALL_MOVES) << NUM_CELLS) | (cfg >> NUM_CELLS);
+            moves value = 1;
+            while (value < ALL_MOVES && result != LOSING)
+            {
+                if ((value & all) == 0)
+                {
+                    outcome chk = checkConfig4(other | value, all | value);
+                    if (chk == WINNING)
+                    {
+                        result = LOSING;
+                    }
+                    else if (chk == DRAW)
+                    {
+                        result = DRAW;
+                    }
+                }
+                value <<= 1;
+            }
+        }
+    }
+    setConfigResult(cfg, result);
+    return result;
+}
 outcome checkConfig(config cfg, moves all)
 {
     outcome result = WINNING;
@@ -233,7 +353,7 @@ square bestMove(const game &g)
     config cfg = g.done[getTurn(g)] | (g.done[1 - getTurn(g)] << NUM_CELLS);
     moves all = allMoves(g), value = 1;
     square result = MIN_CELL, current = MIN_CELL;
-    if (all == 0)
+    if (all == 0 && g.DIM == 3)
     {
         // first move
         result = (rand() % 2) * (g.DIM - 1) + (rand() % 2) * g.DIM * (g.DIM - 1);
@@ -244,7 +364,15 @@ square bestMove(const game &g)
         {
             if ((value & all) == 0)
             {
-                outcome chk = checkConfig(cfg | value, all | value);
+                outcome chk;
+                if (g.DIM == 3)
+                {
+                    chk = checkConfig(cfg | value, all | value);
+                }
+                else
+                {
+                    chk = checkConfig4(cfg | value, all | value);
+                }
                 if (chk == WINNING)
                 {
                     return current;
@@ -362,6 +490,18 @@ void updateElapsed(game &g)
             gameEnded(g);
         }
     }
+}
+
+/**
+ * @brief Initialize AI map
+ */
+void initAI()
+{
+    game g;
+    g.DIM = 4;
+    g.state = RUNNING;
+    initData(g);
+    square s = getMove(g);
 }
 
 #endif

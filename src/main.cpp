@@ -61,6 +61,8 @@ int main(int argc, char *argv[])
     srand(time(nullptr)); // set random seed if needed
     showWelcomeScreen();
     configuration config = loadConfiguration();
+    statusMsg("Initializing AI. Please wait... ");
+    initAI();
     hideWelcomeScreen();
     action a;
     game g = newGame(config);

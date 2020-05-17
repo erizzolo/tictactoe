@@ -12,7 +12,7 @@ using square = char;
 // the player type
 using player = unsigned int;
 
-#define MAX_DIM 4                 ///< max board dimension
+#define MAX_DIM 4 ///< max board dimension
 
 /**
  * @brief game representation (to be defined in game.cpp)
@@ -104,5 +104,10 @@ bool isAllowedMove(const game &, square);
  * 
  */
 void updateElapsed(game &);
+
+/**
+ * @brief Initialize AI map
+ */
+void initAI();
 
 #endif

@@ -51,7 +51,7 @@ const char INPUT_PROMPT[] = "Enter your choice: ";
 // currently selected cell
 square selected = 0;
 // player names
-#define MAX_NAME_LENGTH 30
+#define MAX_NAME_LENGTH 25
 char names[NUM_PLAYERS][MAX_NAME_LENGTH];
 
 // the windows
@@ -377,7 +377,7 @@ void hideWelcomeScreen()
     for (player p = 0; p < NUM_PLAYERS; p++)
     {
         printText(userInput, "Name of player ");
-        cout << (1 + p) << " (blank = AI):";
+        cout << (p == 0 ? "X [" : "O [") << (1 + p) << "] (blank = AI):";
         cin.getline(names[p], MAX_NAME_LENGTH);
         // cin.ignore();
     }
@@ -567,7 +567,7 @@ void gameStarted(const game &g)
     }
     selected = MIN_CELL;
     printCell(g, cellSelected, selected);
-    printText(gameInfo, "Turn of player ");
+    printText(gameInfo, "Turn of ");
     cout << (getTurn(g) == 0 ? "X: " : "O: ") << names[getTurn(g)];
 }
 
@@ -660,8 +660,9 @@ void moveMade(const game &g, square c)
     cellaChanged(g, selected, c);
     selected = c;
     // showAvailableCommands(g);
-    printText(gameInfo, "Turn of player ");
-    cout << names[getTurn(g)];
+    printText(gameInfo, "Turn of ");
+    cout << (getTurn(g) == 0 ? "X: " : "O: ") << names[getTurn(g)];
+    cout.flush();
 }
 
 #endif
